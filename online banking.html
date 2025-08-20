@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Online Banking System (Frontend Only)</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --card: #111827; /* gray-900 */
+      --muted: #94a3b8; /* slate-400 */
+      --text: #e5e7eb; /* gray-200 */
+      --accent: #4f46e5; /* indigo-600 */
+      --accent-2: #22c55e; /* green-500 */
+      --danger: #ef4444; /* red-500 */
+      --warning: #f59e0b; /* amber-500 */
+      --ring: rgba(79, 70, 229, .35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(135deg, #0b1025, #0f172a 40%, #111827);
+      color: var(--text);
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+
+    .row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .row { grid-template-columns: 1.2fr .8fr; } }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;
+    }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #7c3aed); display:grid; place-items:center; font-weight:800; }
+    .title { font-weight: 700; letter-spacing: .4px; }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .nav { display:flex; gap: 8px; flex-wrap: wrap; }
+    .tab {
+      padding: 8px 12px; border-radius: 999px; border:1px solid rgba(255,255,255,.08); color: var(--muted);
+      cursor:pointer; user-select:none; transition:.2s; background: rgba(255,255,255,.02);
+    }
+    .tab.active { color:#fff; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring) inset; }
+
+    .pane { display:none; }
+    .pane.active { display:block; }
+
+    .card-inner { padding: 16px; }
+    .grid { display:grid; gap:12px; grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { display:grid; gap:12px; grid-template-columns: repeat(3, 1fr); }
+    @media (max-width:700px){ .grid, .grid-3 { grid-template-columns: 1fr; } }
+
+    .tile { padding: 14px; border-radius: 14px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,.03); }
+    .tile h4 { margin: 0 0 6px 0; font-size: 14px; color: var(--muted); }
+    .stat { font-size: 22px; font-weight: 700; }
+
+    .form { display:grid; gap:10px; }
+    label { font-size: 13px; color: var(--muted); }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04); color: #fff; outline:none; transition:.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+    button.btn {
+      padding: 10px 14px; border-radius: 10px; border:1px solid rgba(255,255,255,.12); background: var(--accent); color:#fff; cursor:pointer; font-weight:600;
+    }
+    .btn.secondary { background:#0b1229; }
+    .btn.ghost { background:transparent; border-color: rgba(255,255,255,.15); color: var(--muted); }
+    .btn.danger { background: var(--danger); }
+
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; font-size:14px; }
+    th { color: var(--muted); font-weight:600; }
+
+    .right { text-align:right; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    .login {
+      max-width: 420px; margin: 10vh auto; padding: 24px; text-align:center;
+    }
+    .hint { font-size: 12px; color: var(--muted); }
+
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(255,255,255,.12); }
+    .badge.ok { color:#bbf7d0; border-color:#16a34a; }
+    .badge.warn { color:#fde68a; border-color:#f59e0b; }
+    .badge.err { color:#fecaca; border-color:#ef4444; }
+
+    .footer { margin-top: 18px; text-align:center; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    /**
+     * Online Banking System (Frontend Only)
+     * - Demo-only SPA with LocalStorage persistence
+     * - Features: Mock login, dashboard, accounts, transfer, payees, transactions, search & filter, export
+     * - No backend, no real money — for portfolio/GitHub Pages
+     */
+
+    // ---------- Utilities ----------
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    const store = {
+      k: 'obs_v1',
+      get() {
+        try { return JSON.parse(localStorage.getItem(this.k)) || null; } catch { return null; }
+      },
+      set(v) { localStorage.setItem(this.k, JSON.stringify(v)); },
+      clear() { localStorage.removeItem(this.k); }
+    };
+
+    const fmt = new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR' });
+    const todayISO = () => new Date().toISOString();
+
+    // ---------- Seed Demo Data ----------
+    function seed() {
+      return {
+        user: { id: 'u1', name: 'Vanaja', email: 'vanaja@example.com' },
+        session: { loggedIn: false },
+        accounts: [
+          { id: 'acc1', name: 'Savings Account', number: 'XXXX-2211', type: 'Savings', balance: 25000.00 },
+          { id: 'acc2', name: 'Current Account', number: 'XXXX-7742', type: 'Current', balance: 120000.00 },
+        ],
+        payees: [
+          { id: 'p1', name: 'Ravi Kumar', bank: 'HDFC Bank', ifsc: 'HDFC0001234', account: 'XXXX-9988' },
+          { id: 'p2', name: 'Anita Singh', bank: 'SBI', ifsc: 'SBIN0000456', account: 'XXXX-4455' },
+        ],
+        transactions: [
+          { id: 't1', date: todayISO(), from: 'acc1', toName: 'Self Deposit', type: 'Credit', amount: 5000, note: 'Initial deposit' },
+          { id: 't2', date: todayISO(), from: 'acc2', toName: 'ATM Withdrawal', type: 'Debit', amount: 2000, note: 'Cash' },
+        ]
+      };
+    }
+
+    function initState() {
+      const existing = store.get();
+      if (existing) return existing;
+      const seeded = seed();
+      store.set(seeded);
+      return seeded;
+    }
+
+    let state = initState();
+
+    // ---------- Auth (Mock) ----------
+    function renderLogin() {
+      const root = document.createElement('div');
+      root.className = 'container';
+      root.innerHTML = `
+        <div class="card login">
+          <div class="brand" style="justify-content:center;margin-bottom:10px;">
+            <div class="logo">₹</div>
+            <div>
+              <div class="title">OBS Bank</div>
+              <div class="muted">Online Banking System (Demo)</div>
+            </div>
+          </div>
+          <p class="muted" style="margin-bottom:14px">Use any email/password — this is a demo. We only match the email format.</p>
+          <form id="loginForm" class="form">
+            <div>
+              <label>Email</label>
+              <input id="email" type="email" required placeholder="you@example.com" />
+            </div>
+            <div>
+              <label>Password</label>
+              <input id="password" type="password" required placeholder="••••••••" />
+            </div>
+            <button class="btn" type="submit">Sign in</button>
+            <button class="btn ghost" id="demoBtn" type="button">Quick Demo Login</button>
+            <div class="footer">Tip: Publish this file with GitHub Pages for a live demo.</div>
+          </form>
+        </div>
+      `;
+
+      root.querySelector('#demoBtn').addEventListener('click', () => {
+        $('#email', root).value = 'vanaja@example.com';
+        $('#password', root).value = 'demo1234';
+      });
+
+      root.querySelector('#loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = $('#email', root).value.trim();
+        const pwd = $('#password', root).value.trim();
+        if (!email || !pwd) return alert('Enter email and password');
+        state.session.loggedIn = true;
+        state.user.email = email;
+        store.set(state);
+        mountApp();
+      });
+
+      return root;
+    }
+
+    // ---------- Dashboard ----------
+    function topbar() {
+      return `
+        <header>
+          <div class="brand">
+            <div class="logo">₹</div>
+            <div>
+              <div class="title">OBS Bank</div>
+              <div class="muted">Welcome, ${state.user.name}</div>
+            </div>
+          </div>
+          <div class="nav">
+            <div class="tab active" data-tab="dashboard">Dashboard</div>
+            <div class="tab" data-tab="transfer">Transfer</div>
+            <div class="tab" data-tab="payees">Payees</div>
+            <div class="tab" data-tab="transactions">Transactions</div>
+            <button class="tab" id="exportBtn">Export</button>
+            <button class="tab" id="logoutBtn">Logout</button>
+          </div>
+        </header>
+      `;
+    }
+
+    function renderDashboardPane() {
+      const totalBal = state.accounts.reduce((s,a)=>s+a.balance,0);
+      const lastTxn = [...state.transactions].slice(-5).reverse();
+      return `
+        <div class="pane active" id="pane-dashboard">
+          <div class="row">
+            <div class="card">
+              <div class="card-inner">
+                <div class="grid-3">
+                  <div class="tile"><h4>Total Balance</h4><div class="stat">${fmt.format(totalBal)}</div></div>
+                  <div class="tile"><h4>Accounts</h4><div class="stat">${state.accounts.length}</div></div>
+                  <div class="tile"><h4>Payees</h4><div class="stat">${state.payees.length}</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-inner">
+                <h3 style="margin-top:0">Accounts</h3>
+                ${state.accounts.map(a=>`
+                  <div class="tile">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                      <div>
+                        <div style="font-weight:700">${a.name} <span class="badge">${a.type}</span></div>
+                        <div class="muted">${a.number}</div>
+                      </div>
+                      <div class="stat">${fmt.format(a.balance)}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <div class="card-inner">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0">Recent Transactions</h3>
+              </div>
+              <div style="overflow:auto">
+                <table>
+                  <thead>
+                    <tr><th>Date</th><th>Details</th><th>Type</th><th class="right">Amount</th></tr>
+                  </thead>
+                  <tbody>
+                    ${lastTxn.map(t=>`
+                      <tr>
+                        <td>${new Date(t.date).toLocaleString()}</td>
+                        <td>${t.toName} <span class="muted">(${t.note||''})</span></td>
+                        <td>
+                          <span class="badge ${t.type==='Credit'?'ok': t.type==='Debit'?'err':'warn'}">${t.type}</span>
+                        </td>
+                        <td class="right ${t.type==='Debit'?'mono':''}">${t.type==='Debit' ? '-' : ''}${fmt.format(t.amount)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---------- Transfer Pane ----------
+    function renderTransferPane() {
+      const options = state.accounts.map(a=>`<option value="${a.id}">${a.name} (${a.number})</option>`).join('');
+      const payeeOpts = state.payees.map(p=>`<option value="${p.id}">${p.name} — ${p.bank}</option>`).join('');
+      return `
+        <div class="pane" id="pane-transfer">
+          <div class="card"><div class="card-inner">
+            <h3 style="margin-top:0">Transfer Money</h3>
+            <form id="transferForm" class="form">
+              <div class="grid">
+                <div>
+                  <label>From Account</label>
+                  <select id="fromAcc" required>${options}</select>
+                </div>
+                <div>
+                  <label>To (Payee)</label>
+                  <select id="toPayee" required>${payeeOpts}</select>
+                </div>
+              </div>
+              <div class="grid">
+                <div>
+                  <label>Amount (INR)</label>
+                  <input id="amount" type="number" min="1" step="0.01" required placeholder="1000" />
+                </div>
+                <div>
+                  <label>Note (optional)</label>
+                  <input id="note" placeholder="Rent / Food / Bills" />
+                </div>
+              </div>
+              <button class="btn" type="submit">Send</button>
+              <button class="btn ghost" type="button" id="resetTransfer">Reset</button>
+            </form>
+          </div></div>
+        </div>
+      `;
+    }
+
+    // ---------- Payees Pane ----------
+    function renderPayeesPane() {
+      return `
+        <div class="pane" id="pane-payees">
+          <div class="card"><div class="card-inner">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <h3 style="margin:0">Manage Payees</h3>
+              <button class="btn" id="addPayeeBtn">Add Payee</button>
+            </div>
+            <div style="margin-top:10px; overflow:auto">
+              <table>
+                <thead><tr><th>Name</th><th>Bank</th><th>IFSC</th><th>Account</th><th></th></tr></thead>
+                <tbody id="payeesBody">
+                  ${state.payees.map(p=>`
+                    <tr data-id="${p.id}">
+                      <td>${p.name}</td>
+                      <td>${p.bank}</td>
+                      <td class="mono">${p.ifsc}</td>
+                      <td class="mono">${p.account}</td>
+                      <td class="right"><button class="btn danger btnDelPayee">Delete</button></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div></div>
+        </div>
+      `;
+    }
+
+    // ---------- Transactions Pane ----------
+    function renderTransactionsPane() {
+      const rows = [...state.transactions].reverse().map(t=>`
+        <tr>
+          <td>${new Date(t.date).toLocaleString()}</td>
+          <td>${t.from.toUpperCase()}</td>
+          <td>${t.toName}</td>
+          <td>${t.type}</td>
+          <td class="right">${t.type==='Debit'?'-':''}${fmt.format(t.amount)}</td>
+          <td>${t.note||''}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <div class="pane" id="pane-transactions">
+          <div class="card"><div class="card-inner">
+            <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+              <h3 style="margin:0">All Transactions</h3>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="searchTxt" placeholder="Search note/payee..." style="max-width:240px"/>
+                <select id="typeFilter">
+                  <option value="">All</option>
+                  <option value="Credit">Credit</option>
+                  <option value="Debit">Debit</option>
+                </select>
+                <button class="btn secondary" id="clearFilter">Clear</button>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; overflow:auto">
+              <table id="txnTable">
+                <thead>
+                  <tr><th>Date</th><th>From</th><th>To</th><th>Type</th><th class="right">Amount</th><th>Note</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div></div>
+        </div>
+      `;
+    }
+
+    // ---------- Main App Mount ----------
+    function renderApp() {
+      const root = document.createElement('div');
+      root.className = 'container';
+      root.innerHTML = `
+        ${topbar()}
+        <div class="card"><div class="card-inner">
+          <div id="panes">
+            ${renderDashboardPane()}
+            ${renderTransferPane()}
+            ${renderPayeesPane()}
+            ${renderTransactionsPane()}
+          </div>
+        </div></div>
+        <div class="footer">Frontend-only demo • Data saved in your browser (LocalStorage)</div>
+      `;
+      return root;
+    }
+
+    function bindApp(root) {
+      // Tabs
+      $$('.tab', root).forEach(tab=>{
+        const name = tab.getAttribute('data-tab');
+        if (!name) return;
+        tab.addEventListener('click', ()=>{
+          $$('.tab', root).forEach(t=>t.classList.remove('active'));
+          tab.classList.add('active');
+          $$('.pane', root).forEach(p=>p.classList.remove('active'));
+          $('#pane-'+name, root).classList.add('active');
+        });
+      });
+
+      // Logout
+      $('#logoutBtn', root).addEventListener('click', ()=>{
+        state.session.loggedIn = false; store.set(state); mountApp();
+      });
+
+      // Export
+      $('#exportBtn', root).addEventListener('click', ()=>{
+        const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'online-banking-demo-data.json';
+        a.click();
+      });
+
+      // Transfer submit
+      const tForm = $('#transferForm', root);
+      tForm.addEventListener('submit', (e)=>{
+        e.preventDefault();
+        const from = $('#fromAcc', root).value;
+        const payeeId = $('#toPayee', root).value;
+        const amt = parseFloat($('#amount', root).value);
+        const note = $('#note', root).value.trim();
+        if (isNaN(amt) || amt <= 0) return alert('Enter a valid amount');
+
+        const acc = state.accounts.find(a=>a.id===from);
+        if (!acc) return alert('Account not found');
+        if (acc.balance < amt) return alert('Insufficient balance');
+        const payee = state.payees.find(p=>p.id===payeeId);
+
+        acc.balance -= amt;
+        state.transactions.push({ id:'t'+Date.now(), date: todayISO(), from, toName: payee?.name || 'Payee', type: 'Debit', amount: amt, note });
+        store.set(state);
+        mountApp('transfer');
+        alert('Transfer successful');
+      });
+      $('#resetTransfer', root).addEventListener('click', ()=> tForm.reset());
+
+      // Payees handlers
+      $('#addPayeeBtn', root).addEventListener('click', ()=>{
+        const name = prompt('Payee name?'); if (!name) return;
+        const bank = prompt('Bank name?') || 'Bank';
+        const ifsc = prompt('IFSC? (e.g., HDFC0001234)') || 'HDFC0000000';
+        const acct = prompt('Account number (masked)') || 'XXXX-0000';
+        state.payees.push({ id:'p'+Date.now(), name, bank, ifsc, account: acct });
+        store.set(state); mountApp('payees');
+      });
+
+      $$('.btnDelPayee', root).forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const tr = e.target.closest('tr');
+          const id = tr.getAttribute('data-id');
+          if (confirm('Delete this payee?')) {
+            state.payees = state.payees.filter(p=>p.id!==id);
+            store.set(state); mountApp('payees');
+          }
+        });
+      });
+
+      // Transactions filter
+      const search = $('#searchTxt', root);
+      const typeFilter = $('#typeFilter', root);
+      const tableBody = $('#txnTable tbody', root);
+      function applyFilter(){
+        const q = (search.value||'').toLowerCase();
+        const typ = typeFilter.value;
+        const rows = [...state.transactions].reverse().filter(t=>{
+          const hay = `${t.toName} ${t.note||''}`.toLowerCase();
+          const okQ = q ? hay.includes(q) : true;
+          const okT = typ ? t.type===typ : true;
+          return okQ && okT;
+        }).map(t=>`
+          <tr>
+            <td>${new Date(t.date).toLocaleString()}</td>
+            <td>${t.from.toUpperCase()}</td>
+            <td>${t.toName}</td>
+            <td>${t.type}</td>
+            <td class="right">${t.type==='Debit'?'-':''}${fmt.format(t.amount)}</td>
+            <td>${t.note||''}</td>
+          </tr>
+        `).join('');
+        tableBody.innerHTML = rows || '<tr><td colspan="6" class="muted">No transactions</td></tr>';
+      }
+      search.addEventListener('input', applyFilter);
+      typeFilter.addEventListener('change', applyFilter);
+      $('#clearFilter', root).addEventListener('click', ()=>{ search.value=''; typeFilter.value=''; applyFilter(); });
+    }
+
+    function mountApp(targetTab) {
+      const app = $('#app');
+      app.innerHTML = '';
+      if (!state.session.loggedIn) {
+        app.appendChild(renderLogin());
+        return;
+      }
+      const ui = renderApp();
+      app.appendChild(ui);
+      bindApp(ui);
+      if (targetTab) {
+        const tab = $(`.tab[data-tab="${targetTab}"]`, ui);
+        tab?.click();
+      }
+    }
+
+    // Boot
+    mountApp();
+  </script>
+</body>
+</html>
